@@ -3,6 +3,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UserType } from '@/types/user'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
+import axios from 'axios'
+import { host } from '@/utils/constants'
+import { useNavigate } from 'react-router-dom'
+import { useDispatch, useSelector } from 'react-redux'
+import {AppDispatch} from '@/store/store'
+import {setUserInfo} from '@/store/slices/authSlice'
 
 
 const Auth = () => {
@@ -11,6 +18,34 @@ const Auth = () => {
     password:'',
     confirmPassword:''
   })
+  const navigate = useNavigate()
+  const dispatch:AppDispatch = useDispatch()
+ 
+  const state = useSelector((state)=>state)
+  console.log(state)
+
+ 
+
+  const validateSignup = ()=>{
+    if(!userData.email.length || !userData.password.length){
+      toast.error("all fileds are required")
+      return false
+    }
+    if(userData.password !== userData.confirmPassword){
+      toast.error("password and confirmPassword must be the same")
+      return false
+    }
+    return true
+  }
+  const validateLogin = ()=>{
+    if(!userData.email.length || !userData.password.length){
+      toast.error("all fileds are required")
+      return false
+    }
+   
+    return true
+  }
+
 
   function handleChange(e:ChangeEvent<HTMLInputElement>){
        const {name,value}= e.target
@@ -20,13 +55,39 @@ const Auth = () => {
        })
   }
 
-  function handleSubmit(){
-    console.log(userData)
-    setuserData({
-      email:'',
-      password:'',
-      confirmPassword:''
-    })
+  async function handleSignup() {
+    if (validateSignup()) {
+      try {
+        const response = await axios.post(`${host}/signup`, userData, { withCredentials: true });
+        console.log(response)
+        if (response.status === 201) {
+          toast.success('Signup successful');
+          dispatch(setUserInfo(response.data.user))
+          navigate('/profile'); // Redirect to dashboard or home page after successful signup
+        }
+      } catch (error) {
+        if (error.response && error.response.status === 409) {
+          toast.error(error.response.data.message);
+        } else {
+          toast.error('Something went wrong. Please try again.');
+        }
+      }
+    }
+  }
+  async function handleLogin() {
+    if (validateLogin()) {
+      try {
+        const response = await axios.post(`${host}/login`, userData, { withCredentials: true });
+        toast.success('Login successful');
+        if(response.data.user.id){
+          dispatch(setUserInfo(response.data.user))
+          if(response.data.user.profileSetup) navigate('/chat')
+          else navigate('/profile')
+        }
+      } catch (error) {
+        toast.error('Invalid email or password');
+      }
+    }
   }
   return (
     <div className='w-full h-screen flex items-center justify-center'>
@@ -56,7 +117,7 @@ const Auth = () => {
               
               />
               <Input
-              type='password'
+              type='text'
               name='password'
               placeholder='Enter your passward'
               value={userData.password}
@@ -64,7 +125,7 @@ const Auth = () => {
               className='rounded-full p-6'
               />
               
-              <Button>Login</Button>
+              <Button onClick={handleLogin}>Login</Button>
             </TabsContent>
             <TabsContent value="signup" className='flex flex-col items-center justify-center gap-3'>
             <Input
@@ -92,7 +153,7 @@ const Auth = () => {
               onChange={handleChange}
               className='rounded-full p-6'
               />
-              <Button onClick={handleSubmit}>Singup</Button>
+              <Button onClick={handleSignup}>Singup</Button>
             </TabsContent>
           </Tabs>
 
